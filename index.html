@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Symmetric AMM Calculator</title>
+    <style>
+        /* 背景与页面整体样式 */
+        body, html {
+            margin: 0;
+            padding: 0;
+            font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+            background-color: #000;
+            color: #4ade80;
+            height: 100%;
+            overflow: hidden;
+        }
+        #particles-js {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        .container {
+            position: relative;
+            z-index: 2;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            text-shadow: 0 0 10px rgba(74, 222, 128, 0.5);
+        }
+        .card {
+            background-color: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(74, 222, 128, 0.2);
+            border-radius: 8px;
+            padding: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        /* 输入区域布局 */
+        .input-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            position: relative;
+        }
+
+        .fetch-button {
+            position: absolute; /* 使用绝对定位 */
+            right: 28%;        /* 靠右对齐 */
+            bottom: 0rem;      /* 向下偏移 */
+            transform: translateX(50%);
+        }
+
+        @media (max-width: 600px) {
+            .input-group {
+                grid-template-columns: 1fr;
+            }
+            .fetch-button {
+                position: static; /* 在移动端取消绝对定位 */
+                width: 100%;
+                margin-top: 1rem;
+                transform: none;
+            }
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        input {
+            width: 100%;
+            padding: 0.5rem;
+            background-color: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(74, 222, 128, 0.2);
+            border-radius: 4px;
+            color: #4ade80;
+            transition: all 0.3s ease;
+        }
+        input:focus {
+            outline: none;
+            border-color: #4ade80;
+            box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.2);
+        }
+
+        /* 计算按钮样式 */
+        .calc-button {
+            display: inline-block;
+            margin-top: 1rem;
+            padding: 0.6rem 1.2rem;
+            background-color: #4ade80;
+            color: #000;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+        .calc-button:hover {
+            background-color: #34d399; /* Hover 变浅一些 */
+        }
+
+        /* 结果展示区 */
+        .result {
+            margin-top: 2rem;
+            padding: 1rem;
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            min-height: 40px;
+        }
+        .result::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                to right,
+                rgba(74, 222, 128, 0.1),
+                rgba(34, 197, 94, 0.1)
+            );
+            animation: pulse 3s linear infinite;
+            z-index: -1;
+        }
+        @keyframes pulse {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+        .error {
+            color: #f87171; /* 红色警示 */
+            font-weight: bold;
+        }
+        .logo {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 3;
+            width: 300px;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <!-- 粒子背景容器 -->
+    <div id="particles-js"></div>
+    
+    <img src="data:image/png;base64,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" alt="Logo" class="logo">
+
+
+    <!-- Main Content -->
+    <div class="container">
+        <h1>Symmetric AMM Calculator</h1>
+        <div class="card">
+            <!-- Input Section -->
+            <div class="input-group">
+                <input type="hidden" id="quoteSymbol" value="">
+                <div>
+                    <label for="m0">Current Market Cap (M0)</label>
+                    <input type="number" id="m0" step="0.000001" placeholder="e.g. 30000000" />
+                </div>
+                <div>
+                    <label for="m1">Target Market Cap (M1)</label>
+                    <input type="number" id="m1" step="0.000001" placeholder="e.g. 50000000" />
+                </div>
+                <div>
+                    <label for="c">Pool Value (c)</label>
+                    <input type="number" id="c" step="0.000001" placeholder="e.g. 560000" />
+                </div>
+                <div>
+                    <label for="delta">Required Funds (Δ)</label>
+                    <input type="number" id="delta" step="0.000001" placeholder="" />
+                </div>
+                <!-- New Token Addresses Input -->
+                <div>
+                    <label for="tokenAddresses">Token Addresses</label>
+                    <input type="text" id="tokenAddresses" placeholder="e.g. JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN,7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr" />
+                </div>
+                <!-- Fetch Data Button -->
+                <div>
+                    <button class="calc-button fetch-button" onclick="fetchTokenData()">Fetch Data</button>
+                </div>
+            </div>
+
+            <!-- Calculate Button -->
+            <button class="calc-button" onclick="compute()">Calculate</button>
+
+            <!-- Result Display Area -->
+            <div class="result" id="result">
+                Result will appear here after calculation
+            </div>
+        </div>
+    </div>
+
+    <!-- Include Particles.js Script -->
+    <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+    <script>
+        /* 初始化粒子特效 */
+        particlesJS('particles-js', {
+            particles: {
+                number: { value: 80, density: { enable: true, value_area: 800 } },
+                color: { value: "#4ade80" },
+                shape: { type: "circle" },
+                opacity: {
+                    value: 0.5,
+                    random: true,
+                    anim: {
+                        enable: true,
+                        speed: 1,
+                        opacity_min: 0.1,
+                        sync: false
+                    }
+                },
+                size: {
+                    value: 3,
+                    random: true,
+                    anim: {
+                        enable: true,
+                        speed: 3,
+                        size_min: 0.1,
+                        sync: false
+                    }
+                },
+                line_linked: {
+                    enable: true,
+                    distance: 150,
+                    color: "#4ade80",
+                    opacity: 0.4,
+                    width: 1
+                },
+                move: {
+                    enable: true,
+                    speed: 2,
+                    direction: "none",
+                    random: true,
+                    straight: false,
+                    out_mode: "out",
+                    bounce: false,
+                    attract: {
+                        enable: true,
+                        rotateX: 600,
+                        rotateY: 1200
+                    }
+                }
+            },
+            interactivity: {
+                detect_on: "canvas",
+                events: {
+                    onhover: { enable: true, mode: "repulse" },
+                    onclick: { enable: true, mode: "push" },
+                    resize: true
+                },
+                modes: {
+                    grab: { distance: 400, line_linked: { opacity: 1 } },
+                    bubble: { distance: 400, size: 40, duration: 2, opacity: 8, speed: 3 },
+                    repulse: { distance: 200, duration: 0.4 },
+                    push: { particles_nb: 4 },
+                    remove: { particles_nb: 2 }
+                }
+            },
+            retina_detect: true
+        });
+
+        /* ============== 1. 原有函数：根据用户输入的 Token Addresses 获取数据并填入 ============== */
+        async function fetchTokenData() {
+    const tokenAddresses = document.getElementById("tokenAddresses").value.trim();
+    const resultDiv = document.getElementById("result");
+
+    if (!tokenAddresses) {
+        resultDiv.innerHTML = "<span class='error'>Error: Please enter Token Addresses.</span>";
+        return;
+    }
+
+    const apiUrl = `https://api.dexscreener.com/latest/dex/tokens/${encodeURIComponent(tokenAddresses)}`;
+
+    try {
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+            throw new Error(`API request failed with status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (!data.pairs || data.pairs.length === 0) {
+            throw new Error("No pairs found for the provided Token Addresses.");
+        }
+
+        // 找到流动性最大的交易对
+        let maxLiquidity = -Infinity;
+        let selectedPair = null;
+
+        data.pairs.forEach(pair => {
+            if (pair.liquidity && typeof pair.liquidity.usd === 'number') {
+                if (pair.liquidity.usd > maxLiquidity) {
+                    maxLiquidity = pair.liquidity.usd;
+                    selectedPair = pair;
+                }
+            }
+        });
+
+        if (!selectedPair) {
+            throw new Error("No pairs with valid liquidity found.");
+        }
+
+        // 提取当前市值 (M0) 和池子大小 (c)
+        const M0 = selectedPair.marketCap;
+        const c = selectedPair.liquidity.usd;
+
+        if (typeof M0 !== 'number' || typeof c !== 'number') {
+            throw new Error("Invalid data format received from API.");
+        }
+
+        // 保存 quote token symbol 到一个隐藏的 input 中
+        const quoteSymbol = selectedPair.quoteToken.symbol;
+        document.getElementById("quoteSymbol").value = quoteSymbol;
+
+        // 填充到输入字段
+        document.getElementById("m0").value = M0;
+        document.getElementById("c").value = c;
+
+        resultDiv.innerHTML = "Data successfully fetched and populated. You can now perform the calculation.";
+
+    } catch (error) {
+        resultDiv.innerHTML = `<span class='error'>Data Fetch Error: ${error.message}</span>`;
+    }
+}
+        /* ============== 2. 新增函数：获取 0xD31a59... 合约所对应的价格（USD） ============== */
+        async function getD31aPrice() {
+            // 你要获取价格的合约
+            const d31aAddress = "0xD31a59c85aE9D8edEFeC411D448f90841571b89c";
+            const apiUrl = `https://api.dexscreener.com/latest/dex/tokens/${d31aAddress}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API request failed with status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (!data.pairs || data.pairs.length === 0) {
+                    throw new Error("No pairs found for the D31a contract.");
+                }
+
+                // 同样找流动性最大的对
+                let maxLiquidity = -Infinity;
+                let selectedPair = null;
+
+                data.pairs.forEach(pair => {
+                    if (pair.liquidity && typeof pair.liquidity.usd === 'number') {
+                        if (pair.liquidity.usd > maxLiquidity) {
+                            maxLiquidity = pair.liquidity.usd;
+                            selectedPair = pair;
+                        }
+                    }
+                });
+
+                if (!selectedPair) {
+                    throw new Error("No valid liquidity found for D31a.");
+                }
+
+                // 从 selectedPair 里拿到 USD 价格
+                const priceUsdString = selectedPair.priceUsd;
+                const priceUsd = parseFloat(priceUsdString);
+
+                if (isNaN(priceUsd)) {
+                    throw new Error("Invalid priceUsd data from D31a.");
+                }
+
+                return priceUsd;
+            } catch (err) {
+                // 如果失败, 可以抛出错误, 在调用处捕获
+                throw new Error(err.message);
+            }
+        }
+
+        async function getDVirtualPrice() {
+            // 你要获取价格的合约   
+            const virtualAddress = "0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b";
+            const apiUrl = `https://api.dexscreener.com/latest/dex/tokens/${virtualAddress}`;
+
+             try {
+                 const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API request failed with status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (!data.pairs || data.pairs.length === 0) {
+                    throw new Error("No pairs found for the VIRTUAL token.");
+                }
+
+                // 同样找流动性最大的对
+                let maxLiquidity = -Infinity;
+                let selectedPair = null;
+
+                data.pairs.forEach(pair => {
+                    if (pair.liquidity && typeof pair.liquidity.usd === 'number') {
+                        if (pair.liquidity.usd > maxLiquidity) {
+                            maxLiquidity = pair.liquidity.usd;
+                            selectedPair = pair;
+                        }
+                    }
+                });
+
+                if (!selectedPair) {
+                    throw new Error("No valid liquidity found for VIRTUAL token.");
+                }
+
+                // 从 selectedPair 里拿到 USD 价格
+                const priceUsdString = selectedPair.priceUsd;
+                const priceUsd = parseFloat(priceUsdString);
+
+                if (isNaN(priceUsd)) {
+                    throw new Error("Invalid priceUsd data for VIRTUAL token.");
+                }
+
+                return priceUsd;
+            } catch (err) {
+                throw new Error(err.message);
+            }
+}
+
+
+        /* ============== 3. 主计算函数 (改为 async)，在计算 Δ 时附加一句 => XXX SOL ============== */
+        async function compute() {
+            const m0Input    = document.getElementById("m0").value.trim();
+            const m1Input    = document.getElementById("m1").value.trim();
+            const cInput     = document.getElementById("c").value.trim();
+            const deltaInput = document.getElementById("delta").value.trim();
+
+            let M0    = parseFloat(m0Input);
+            let M1    = parseFloat(m1Input);
+            let c     = parseFloat(cInput);
+            let Delta = parseFloat(deltaInput);
+
+            const resultDiv = document.getElementById("result");
+
+            // 统计已填数字的个数
+            let knownCount = 0;
+            if (!isNaN(M0))    knownCount++;
+            if (!isNaN(M1))    knownCount++;
+            if (!isNaN(c))     knownCount++;
+            if (!isNaN(Delta)) knownCount++;
+
+            // 只允许有且仅有一个空字段
+            if (knownCount < 3) {
+                resultDiv.innerHTML = "<span class='error'>Error: Please fill in at least three fields.</span>";
+                return;
+            }
+            
+            if (knownCount > 3) {
+                resultDiv.innerHTML = "<span class='error'>Error: Please leave exactly one field empty.</span>";
+                return;
+            }
+
+            try {
+        // 获取 quote symbol
+        const quoteSymbol = document.getElementById("quoteSymbol").value;
+        
+        if (isNaN(Delta)) {
+            if (M0 <= 0 || M1 <= 0 || c <= 0) {
+                throw new Error("Please ensure M0 > 0, M1 > 0, and c > 0.");
+            }
+            const alpha = M1 / M0;
+            if (alpha <= 0) {
+                throw new Error("Invalid value for M1 / M0.");
+            }
+            const deltaCalc = (c / 2) * (Math.sqrt(alpha) - 1);
+            Delta = deltaCalc;
+
+            // 根据 quote symbol 选择计算方式
+            let extraInfo = "";
+            try {
+                if (quoteSymbol === "SOL") {
+                    const d31aPrice = await getD31aPrice();
+                    const solNeeded = Delta / d31aPrice;
+                    extraInfo = ` => ${solNeeded.toFixed(6)} SOL needed`;
+                } else if (quoteSymbol === "VIRTUAL") {
+                    const dVirtualPrice = await getDVirtualPrice();
+                    const virtualNeeded = Delta / dVirtualPrice;
+                    extraInfo = ` => ${virtualNeeded.toFixed(6)} VIRTUAL needed`;
+                } else {
+                    extraInfo = ` (Unknown quote token: ${quoteSymbol})`;
+                }
+            } catch (err) {
+                extraInfo = ` (Error fetching token prices: ${err.message})`;
+            }
+
+            resultDiv.innerHTML = `Required Funds Δ = <strong>${Delta.toFixed(6)}</strong>${extraInfo}`;
+        }   
+                // ========== (2) 计算 M1 ==========
+                else if (isNaN(M1)) {
+                    if (M0 <= 0 || c <= 0 || Delta < 0) {
+                        throw new Error("Please ensure M0 > 0, c > 0, and Δ >= 0.");
+                    }
+                    const M1Calc = M0 * Math.pow(1 + (2 * Delta) / c, 2);
+                    M1 = M1Calc;
+                    resultDiv.innerHTML = `Target Market Cap M1 = <strong>${M1.toFixed(6)}</strong>`;
+                }
+                // ========== (3) 计算 c ==========
+                else if (isNaN(c)) {
+                    if (M0 <= 0 || M1 <= 0 || Delta < 0) {
+                        throw new Error("Please ensure M0 > 0, M1 > 0, and Δ >= 0.");
+                    }
+                    const alpha = M1 / M0;
+                    if (alpha <= 1) {
+                        throw new Error("Target Market Cap M1 must be greater than Current Market Cap M0.");
+                    }
+                    const denom = Math.sqrt(alpha) - 1;
+                    if (denom <= 0) {
+                        throw new Error("Invalid calculation for c.");
+                    }
+                    const cCalc = (2 * Delta) / denom;
+                    c = cCalc;
+                    resultDiv.innerHTML = `Pool Value c = <strong>${c.toFixed(6)}</strong>`;
+                }
+                // ========== (4) 计算 M0 ==========
+                else if (isNaN(M0)) {
+                    if (M1 <= 0 || c <= 0 || Delta < 0) {
+                        throw new Error("Please ensure M1 > 0, c > 0, and Δ >= 0.");
+                    }
+                    const x = 1 + (2 * Delta) / c;
+                    if (x <= 0) {
+                        throw new Error("Invalid calculation for M0.");
+                    }
+                    const M0Calc = M1 / (x * x);
+                    M0 = M0Calc;
+                    resultDiv.innerHTML = `Current Market Cap M0 = <strong>${M0.toFixed(6)}</strong>`;
+                }
+
+            } catch (err) {
+                resultDiv.innerHTML = `<span class="error">Calculation Error: ${err.message}</span>`;
+            }
+        }
+    </script>
+</body>
+</html>
